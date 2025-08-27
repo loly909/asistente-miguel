@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Miguel Asistente</title>
+</head>
+<body>
+  <h1>Asistente Miguel</h1>
+  <textarea id="msg" placeholder="Escribí tu mensaje..."></textarea>
+  <button onclick="sendMessage()">Enviar</button>
+  <pre id="reply"></pre>
+
+  <script>
+    async function sendMessage() {
+      const message = document.getElementById("msg").value;
+      const res = await fetch("/.netlify/functions/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message })
+      });
+      const data = await res.json();
+      document.getElementById("reply").innerText = data.reply;
+    }
+  </script>
+</body>
+</html>
