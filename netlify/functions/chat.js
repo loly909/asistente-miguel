@@ -13,36 +13,36 @@ exports.handler = async function (event, context) {
 
   try {
     const { message } = JSON.parse(event.body);
+
     const thread = await openai.beta.threads.create();
 
     await openai.beta.threads.messages.create(thread.id, {
       role: 'user',
       content: message,
     });
-
-    const run = await openai.beta.threads.runs.create(thread.id, {
+    
+    // Usamos un método más moderno y robusto que espera la respuesta
+    const run = await openai.beta.threads.runs.createAndPoll(thread.id, {
       assistant_id: assistantId,
     });
 
-    let runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
-    while (runStatus.status !== 'completed') {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
+    if (run.status === 'completed') {
+      const messages = await openai.beta.threads.messages.list(run.thread_id);
+      const assistantResponse = messages.data.find(m => m.role === 'assistant');
+      const reply = assistantResponse ? assistantResponse.content[0].text.value : "No pude obtener una respuesta.";
+      
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ reply }),
+      };
+    } else {
+      // Si el estado no es 'completed', informamos del problema
+      console.log(`El estado del asistente es: ${run.status}`);
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: 'La ejecución del asistente no se completó.' }),
+      };
     }
-
-    const messages = await openai.beta.threads.messages.list(thread.id);
-    const assistantResponse = messages.data.find(m => m.role === 'assistant');
-    
-    let reply = "No pude obtener una respuesta.";
-    if (assistantResponse && assistantResponse.content && assistantResponse.content[0].type === 'text') {
-        reply = assistantResponse.content[0].text.value;
-    }
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ reply }),
-    };
-
   } catch (error) {
     console.error('Error al procesar la solicitud:', error);
     return {
